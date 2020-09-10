@@ -1,19 +1,22 @@
-use super::{xy_index, Player, Postion, State, TileType};
+use super::{Map, Player, Position, State, TileType, Viewshed};
 use rltk::{Rltk, VirtualKeyCode};
 use specs::prelude::*;
 use std::cmp::{max, min};
 
 pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
-    let mut positions = ecs.write_storage::<Postion>();
+    let mut positions = ecs.write_storage::<Position>();
     let mut players = ecs.write_storage::<Player>();
-    let map = ecs.fetch::<Vec<TileType>>();
+    let mut viewsheds = ecs.write_storage::<Viewshed>();
+    let map = ecs.fetch::<Map>();
 
-    for (_player, position) in (&mut players, &mut positions).join() {
-        let destination_index = xy_index(position.x + delta_x, position.y + delta_y);
+    for (_player, position, viewshed) in (&mut players, &mut positions, &mut viewsheds).join() {
+        let destination_index = map.xy_index(position.x + delta_x, position.y + delta_y);
 
-        if map[destination_index] != TileType::Wall {
+        if map.tiles[destination_index] != TileType::Wall {
             position.x = min(79, max(0, position.x + delta_x));
             position.y = min(49, max(0, position.y + delta_y));
+
+            viewshed.dirty = true;
         }
     }
 }
