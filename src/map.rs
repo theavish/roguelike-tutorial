@@ -46,6 +46,15 @@ impl Map {
             }
         }
     }
+    fn is_exit_valid(&self, x: i32, y: i32) -> bool {
+        if (x < 1) || (x > self.width - 1) || (y < 1) || (y > self.height - 1) {
+            return false;
+        }
+
+        let index = self.xy_index(x, y);
+        return self.tiles[index as usize] != TileType::Wall;
+    }
+
     /// Make an 80x50 map with rooms, connected by hallways.
     /// Uses [this algorithm](http://rogueliketutorials.com/tutorials/tcod/part-3).
     pub fn new_map_rooms_and_corridors() -> Map {
@@ -102,6 +111,35 @@ impl Map {
 impl BaseMap for Map {
     fn is_opaque(&self, index: usize) -> bool {
         return self.tiles[index] == TileType::Wall;
+    }
+    fn get_available_exits(&self, index: usize) -> rltk::SmallVec<[(usize, f32); 10]> {
+        let mut exits = rltk::SmallVec::new();
+        let x = index as i32 % self.width;
+        let y = index as i32 / self.width;
+        let w = self.width as usize;
+
+        // check cardinal directions
+        if self.is_exit_valid(x - 1, y) {
+            exits.push((index - 1, 1.0))
+        };
+        if self.is_exit_valid(x + 1, y) {
+            exits.push((index + 1, 1.0))
+        };
+        if self.is_exit_valid(x, y - 1) {
+            exits.push((index - w, 1.0))
+        };
+        if self.is_exit_valid(x, y + 1) {
+            exits.push((index + w, 1.0))
+        };
+
+        return exits;
+    }
+    fn get_pathing_distance(&self, index1: usize, index2: usize) -> f32 {
+        let w = self.width as usize;
+        let point1 = Point::new(index1 % w, index1 / w);
+        let point2 = Point::new(index2 % w, index2 / w);
+
+        return rltk::DistanceAlg::Pythagoras.distance2d(point1, point2);
     }
 }
 
