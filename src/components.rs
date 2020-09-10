@@ -15,12 +15,20 @@ pub struct Renderable {
     pub bg: RGB,
 }
 
-#[derive(Component, Debug)]
-pub struct Player {}
-
 #[derive(Component)]
 pub struct Viewshed {
     pub visible_tiles: Vec<Point>,
     pub range: i32,
     pub dirty: bool,
+}
+
+#[derive(Component, Debug)]
+pub struct Player {}
+
+#[derive(Component, Debug)]
+pub struct Monster {}
+
+#[derive(Component,Debug)]
+pub struct Name {
+    pub value: String,
 }
