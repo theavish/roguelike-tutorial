@@ -106,7 +106,6 @@ fn main() -> rltk::BError {
     let mut context = RltkBuilder::simple80x50()
         .with_title("Generic Roguelike")
         .build()?;
-    context.with_post_scanlines(true);
 
     let mut gs = State { ecs: World::new() };
     gs.ecs.register::<Position>();
@@ -119,6 +118,8 @@ fn main() -> rltk::BError {
     gs.ecs.register::<CombatStats>();
     gs.ecs.register::<WantsToMelee>();
     gs.ecs.register::<SufferDamage>();
+    gs.ecs.register::<Item>();
+    gs.ecs.register::<Potion>();
 
     let map: Map = Map::new_map_rooms_and_corridors();
     let (player_x, player_y) = map.rooms[0].center();
@@ -128,8 +129,7 @@ fn main() -> rltk::BError {
     gs.ecs.insert(rltk::RandomNumberGenerator::new());
 
     for room in map.rooms.iter().skip(1) {
-        let (x, y) = room.center();
-        spawner::random_monster(&mut gs.ecs, x, y);
+        spawner::spawn_room(&mut gs.ecs, room);
     }
 
     gs.ecs.insert(GameLog {

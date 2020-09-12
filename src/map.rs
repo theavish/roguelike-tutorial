@@ -3,9 +3,11 @@ use rltk::{Algorithm2D, BaseMap, Point, RandomNumberGenerator, Rltk, RGB};
 use specs::prelude::*;
 use std::cmp::{max, min};
 
-const MAPWIDTH: usize = 80;
-const MAPHEIGHT: usize = 43;
-const MAPCOUNT: usize = MAPHEIGHT * MAPWIDTH;
+pub const MAPWIDTH: usize = 80;
+pub const MAPHEIGHT: usize = 43;
+pub const MAPCOUNT: usize = MAPHEIGHT * MAPWIDTH;
+pub const MAX_MONSTERS: i32 = 4;
+pub const MAX_ITEMS: i32 = 2;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum TileType {

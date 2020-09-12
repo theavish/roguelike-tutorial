@@ -42,7 +42,11 @@ pub fn delete_the_dead(ecs: &mut World) {
                         }
                         dead.push(victim);
                     }
-                    Some(_) => console::log("You are dead"),
+                    Some(_) => {
+                        log.entries.push("You are dead".to_string());
+                        // TODO: on-death logic?
+                        dead.push(victim);
+                    }
                 }
             }
         }
