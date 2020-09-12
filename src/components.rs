@@ -13,6 +13,7 @@ pub struct Renderable {
     pub glyph: rltk::FontCharType,
     pub fg: RGB,
     pub bg: RGB,
+    pub render_order: i32,
 }
 
 #[derive(Component, Debug)]
@@ -85,5 +86,15 @@ pub struct InBackpack {
 #[derive(Component, Debug, Clone)]
 pub struct WantsToPickUpItem {
     pub collected_by: Entity,
+    pub item: Entity,
+}
+
+#[derive(Component, Debug)]
+pub struct WantsToDrinkPotion {
+    pub potion: Entity,
+}
+
+#[derive(Debug, Component, Clone)]
+pub struct WantsToDropItem {
     pub item: Entity,
 }

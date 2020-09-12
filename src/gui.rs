@@ -158,10 +158,11 @@ fn draw_tooltips(ecs: &World, ctx: &mut Rltk) {
     }
 }
 
-pub fn show_inventory(gs: &mut State, ctx: &mut Rltk) -> ItemMenuResult {
+pub fn show_inventory(gs: &mut State, ctx: &mut Rltk) -> (ItemMenuResult, Option<Entity>) {
     let player_entity = gs.ecs.fetch::<Entity>();
     let names = gs.ecs.read_storage::<Name>();
     let backpack = gs.ecs.read_storage::<InBackpack>();
+    let entities = gs.ecs.entities();
 
     let inventory = (&backpack, &names)
         .join()
@@ -192,10 +193,11 @@ pub fn show_inventory(gs: &mut State, ctx: &mut Rltk) -> ItemMenuResult {
         "Esc to close",
     );
 
+    let mut equippable: Vec<Entity> = Vec::new();
     let mut j = 0;
-    for (_b, name) in (&backpack, &names)
+    for (entity, _b, name) in (&entities, &backpack, &names)
         .join()
-        .filter(|item| item.0.owner == *player_entity)
+        .filter(|item| item.1.owner == *player_entity)
     {
         ctx.set(
             17,
@@ -220,15 +222,114 @@ pub fn show_inventory(gs: &mut State, ctx: &mut Rltk) -> ItemMenuResult {
         );
 
         ctx.print(21, y, &name.value.to_string());
+        equippable.push(entity);
         y += 1;
         j += 1;
     }
 
     match ctx.key {
-        None => return ItemMenuResult::NoResponse,
+        None => (ItemMenuResult::NoResponse, None),
         Some(key) => match key {
-            VirtualKeyCode::Escape => return ItemMenuResult::Cancel,
-            _ => ItemMenuResult::NoResponse,
+            VirtualKeyCode::Escape => (ItemMenuResult::Cancel, None),
+            _ => {
+                let selection = rltk::letter_to_option(key);
+                if selection > -1 && selection < count {
+                    return (
+                        ItemMenuResult::Selected,
+                        Some(equippable[selection as usize]),
+                    );
+                }
+
+                return (ItemMenuResult::NoResponse, None);
+            }
+        },
+    }
+}
+
+pub fn drop_item_menu(gs: &mut State, ctx: &mut Rltk) -> (ItemMenuResult, Option<Entity>) {
+    let player_entity = gs.ecs.fetch::<Entity>();
+    let names = gs.ecs.read_storage::<Name>();
+    let backpack = gs.ecs.read_storage::<InBackpack>();
+    let entities = gs.ecs.entities();
+
+    let inventory = (&backpack, &names)
+        .join()
+        .filter(|item| item.0.owner == *player_entity);
+    let count = inventory.count() as i32;
+
+    let mut y = 25 - (count / 2);
+    ctx.draw_box(
+        15,
+        y - 2,
+        31,
+        count + 3,
+        RGB::named(rltk::WHITE),
+        RGB::named(rltk::BLACK),
+    );
+    ctx.print_color(
+        18,
+        y - 2,
+        RGB::named(rltk::YELLOW),
+        RGB::named(rltk::BLACK),
+        "Drop Item",
+    );
+    ctx.print_color(
+        18,
+        y + count as i32 + 1,
+        RGB::named(rltk::YELLOW),
+        RGB::named(rltk::BLACK),
+        "Esc to close",
+    );
+
+    let mut equippable: Vec<Entity> = Vec::new();
+    let mut j = 0;
+    for (entity, _b, name) in (&entities, &backpack, &names)
+        .join()
+        .filter(|item| item.1.owner == *player_entity)
+    {
+        ctx.set(
+            17,
+            y,
+            RGB::named(rltk::WHITE),
+            RGB::named(rltk::BLACK),
+            rltk::to_cp437('('),
+        );
+        ctx.set(
+            18,
+            y,
+            RGB::named(rltk::YELLOW),
+            RGB::named(rltk::BLACK),
+            97 + j as rltk::FontCharType,
+        );
+        ctx.set(
+            19,
+            y,
+            RGB::named(rltk::WHITE),
+            RGB::named(rltk::BLACK),
+            rltk::to_cp437(')'),
+        );
+
+        ctx.print(21, y, &name.value.to_string());
+        equippable.push(entity);
+
+        y += 1;
+        j += 1;
+    }
+
+    match ctx.key {
+        None => (ItemMenuResult::NoResponse, None),
+        Some(key) => match key {
+            VirtualKeyCode::Escape => (ItemMenuResult::Cancel, None),
+            _ => {
+                let selection = rltk::letter_to_option(key);
+                if selection > -1 && selection < count {
+                    return (
+                        ItemMenuResult::Selected,
+                        Some(equippable[selection as usize]),
+                    );
+                }
+                return (ItemMenuResult::NoResponse, None);
+            }
         },
     }
 }
