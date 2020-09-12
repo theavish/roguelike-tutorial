@@ -21,7 +21,9 @@ use damage_system::DamageSystem;
 mod gamelog;
 use gamelog::GameLog;
 mod gui;
+mod inventory_system;
 mod spawner;
+use inventory_system::InventorySystem;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState {
@@ -47,6 +49,9 @@ impl State {
         melee.run_now(&self.ecs);
         let mut damage = DamageSystem {};
         damage.run_now(&self.ecs);
+        let mut inventory = InventorySystem {};
+        inventory.run_now(&self.ecs);
+
         self.ecs.maintain();
     }
 }
@@ -120,6 +125,8 @@ fn main() -> rltk::BError {
     gs.ecs.register::<SufferDamage>();
     gs.ecs.register::<Item>();
     gs.ecs.register::<Potion>();
+    gs.ecs.register::<InBackpack>();
+    gs.ecs.register::<WantsToPickUpItem>();
 
     let map: Map = Map::new_map_rooms_and_corridors();
     let (player_x, player_y) = map.rooms[0].center();
