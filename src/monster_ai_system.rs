@@ -5,7 +5,6 @@ use specs::prelude::*;
 pub struct MonsterAI {}
 
 impl<'a> System<'a> for MonsterAI {
-    #[allow(clippy::type_complexity)]
     type SystemData = (
         WriteExpect<'a, Map>,
         ReadExpect<'a, Point>,

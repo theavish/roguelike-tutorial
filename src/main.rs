@@ -18,6 +18,9 @@ mod melee_combat_system;
 use melee_combat_system::MeleeCombatSystem;
 mod damage_system;
 use damage_system::DamageSystem;
+mod gamelog;
+use gamelog::GameLog;
+mod gui;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState {
@@ -92,14 +95,18 @@ impl GameState for State {
                 ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph)
             }
         }
+
+        gui::draw_ui(&self.ecs, ctx);
     }
 }
 
 fn main() -> rltk::BError {
     use rltk::RltkBuilder;
-    let context = RltkBuilder::simple80x50()
-        .with_title("Roguelike Tutorial")
+    let mut context = RltkBuilder::simple80x50()
+        .with_title("Generic Roguelike")
         .build()?;
+    context.with_post_scanlines(true);
+
     let mut gs = State { ecs: World::new() };
     gs.ecs.register::<Position>();
     gs.ecs.register::<Renderable>();
@@ -189,6 +196,9 @@ fn main() -> rltk::BError {
             .build();
     }
 
+    gs.ecs.insert(GameLog {
+        entries: vec!["Welcome to Generic Roguelike".to_string()],
+    });
     gs.ecs.insert(map);
     gs.ecs.insert(Point::new(player_x, player_y));
     gs.ecs.insert(player_entity);

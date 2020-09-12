@@ -29,7 +29,9 @@ pub struct Viewshed {
 pub struct Monster {}
 
 #[derive(Component, Debug)]
+/// Name component
 pub struct Name {
+    /// The entity's name
     pub value: String,
 }
 
