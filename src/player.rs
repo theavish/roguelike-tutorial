@@ -98,6 +98,8 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
             VirtualKeyCode::S | VirtualKeyCode::Down => try_move_player(0, 1, &mut gs.ecs),
 
             VirtualKeyCode::F => get_item(&mut gs.ecs),
+
+            VirtualKeyCode::Tab => return RunState::ShowInventory,
             _ => return RunState::AwaitingInput,
         },
     }
