@@ -23,9 +23,9 @@ use gamelog::GameLog;
 mod gui;
 mod inventory_system;
 mod spawner;
-use inventory_system::InventorySystem;
+use inventory_system::ItemBagSystem;
 use inventory_system::ItemDropSystem;
-use inventory_system::PotionUseSystem;
+use inventory_system::ItemUseSystem;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState {
@@ -53,10 +53,10 @@ impl State {
         melee.run_now(&self.ecs);
         let mut damage = DamageSystem {};
         damage.run_now(&self.ecs);
-        let mut inventory = InventorySystem {};
+        let mut inventory = ItemBagSystem {};
         inventory.run_now(&self.ecs);
-        let mut potion_use = PotionUseSystem {};
-        potion_use.run_now(&self.ecs);
+        let mut use_item = ItemUseSystem {};
+        use_item.run_now(&self.ecs);
         let mut drop_item = ItemDropSystem {};
         drop_item.run_now(&self.ecs);
 
@@ -78,7 +78,7 @@ impl State {
         self.ecs.register::<Potion>();
         self.ecs.register::<InBackpack>();
         self.ecs.register::<WantsToPickUpItem>();
-        self.ecs.register::<WantsToDrinkPotion>();
+        self.ecs.register::<WantsToUseItem>();
         self.ecs.register::<WantsToDropItem>();
     }
 }
@@ -140,14 +140,12 @@ impl GameState for State {
                     gui::ItemMenuResult::NoResponse => {}
                     gui::ItemMenuResult::Selected => {
                         let item_entity = result.1.unwrap();
-                        let mut intent = self.ecs.write_storage::<WantsToDrinkPotion>();
+                        let mut intent = self.ecs.write_storage::<WantsToUseItem>();
 
                         intent
                             .insert(
                                 *self.ecs.fetch::<Entity>(),
-                                WantsToDrinkPotion {
-                                    potion: item_entity,
-                                },
+                                WantsToUseItem { item: item_entity },
                             )
                             .expect("Unable to insert intent");
                         newrunstate = RunState::PlayerTurn;

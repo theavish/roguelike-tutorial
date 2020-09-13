@@ -90,11 +90,14 @@ pub struct WantsToPickUpItem {
 }
 
 #[derive(Component, Debug)]
-pub struct WantsToDrinkPotion {
-    pub potion: Entity,
+pub struct WantsToUseItem {
+    pub item: Entity,
 }
 
 #[derive(Debug, Component, Clone)]
 pub struct WantsToDropItem {
     pub item: Entity,
 }
+
+#[derive(Debug, Component)]
+pub struct Consumable {}
