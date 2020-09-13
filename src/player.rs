@@ -1,6 +1,6 @@
 use super::{
-    CombatStats, GameLog, Item, Map, Player, Position, RunState, State, TileType, Viewshed,
-    WantsToMelee, WantsToPickUpItem,
+    CombatStats, GameLog, Item, Map, Monster, Player, Position, RunState, State, TileType,
+    Viewshed, WantsToMelee, WantsToPickUpItem,
 };
 use rltk::{Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
@@ -105,7 +105,7 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
                     return RunState::NextLevel;
                 }
             }
-
+            VirtualKeyCode::Space => return skip_turn(&mut gs.ecs),
             VirtualKeyCode::D => return RunState::ShowDropItem,
             VirtualKeyCode::B => return RunState::ShowInventory,
             VirtualKeyCode::Escape => return RunState::SaveGame,
@@ -129,4 +129,37 @@ fn try_next_level(ecs: &mut World) -> bool {
             .push("There is no way down from here.".to_string());
         return false;
     }
+}
+
+fn skip_turn(ecs: &mut World) -> RunState {
+    let player_entity = ecs.fetch::<Entity>();
+    let viewshed_components = ecs.read_storage::<Viewshed>();
+    let monsters = ecs.read_storage::<Monster>();
+
+    let world_map_resource = ecs.fetch::<Map>();
+
+    let mut can_heal = true;
+    let viewshed = viewshed_components.get(*player_entity).unwrap();
+    for tile in viewshed.visible_tiles.iter() {
+        let idx = world_map_resource.xy_idx(tile.x, tile.y);
+        for entity in world_map_resource.tile_content[idx].iter() {
+            // check if any monsters are in view
+            let mob = monsters.get(*entity);
+            match mob {
+                None => {}
+                Some(_) => can_heal = false,
+            }
+        }
+    }
+
+    if can_heal {
+        let mut health_components = ecs.write_storage::<CombatStats>();
+        let player_hp = health_components.get_mut(*player_entity).unwrap();
+        player_hp.hp = i32::min(player_hp.hp + 1, player_hp.max_hp);
+    }
+
+    let mut gamelog = ecs.write_resource::<GameLog>();
+    gamelog.entries.push("You catch your breath.".to_string());
+
+    return RunState::PlayerTurn;
 }
