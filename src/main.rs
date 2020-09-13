@@ -26,6 +26,9 @@ mod spawner;
 use inventory_system::ItemBagSystem;
 use inventory_system::ItemDropSystem;
 use inventory_system::ItemUseSystem;
+extern crate serde;
+use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};
+mod saveload_system;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState {
@@ -35,7 +38,14 @@ pub enum RunState {
     MonsterTurn,
     ShowInventory,
     ShowDropItem,
-    ShowTargeting { range: i32, item: Entity },
+    ShowTargeting {
+        range: i32,
+        item: Entity,
+    },
+    MainMenu {
+        menu_selection: gui::MainMenuSelection,
+    },
+    SaveGame,
 }
 
 pub struct State {
@@ -86,37 +96,44 @@ impl State {
         self.ecs.register::<InflictsDamage>();
         self.ecs.register::<AreaOfEffect>();
         self.ecs.register::<Confusion>();
+        self.ecs.register::<SimpleMarker<SerializeMe>>();
+        self.ecs.register::<SerializationHelper>();
     }
 }
 
 impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
-        ctx.cls();
-
-        draw_map(&self.ecs, ctx);
-
-        {
-            let positions = self.ecs.read_storage::<Position>();
-            let renderables = self.ecs.read_storage::<Renderable>();
-            let map = self.ecs.fetch::<Map>();
-
-            let mut data = (&positions, &renderables).join().collect::<Vec<_>>();
-            data.sort_by(|&a, &b| b.1.render_order.cmp(&a.1.render_order));
-
-            for (pos, render) in data.iter() {
-                let idx = map.xy_idx(pos.x, pos.y);
-                if map.visible_tiles[idx] {
-                    ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph)
-                }
-            }
-
-            gui::draw_ui(&self.ecs, ctx);
-        }
-
         let mut newrunstate;
         {
             let runstate = self.ecs.fetch::<RunState>();
             newrunstate = *runstate;
+        }
+
+        ctx.cls();
+
+        match newrunstate {
+            RunState::MainMenu { .. } => {}
+            _ => {
+                draw_map(&self.ecs, ctx);
+
+                {
+                    let positions = self.ecs.read_storage::<Position>();
+                    let renderables = self.ecs.read_storage::<Renderable>();
+                    let map = self.ecs.fetch::<Map>();
+
+                    let mut data = (&positions, &renderables).join().collect::<Vec<_>>();
+                    data.sort_by(|&a, &b| b.1.render_order.cmp(&a.1.render_order));
+
+                    for (pos, render) in data.iter() {
+                        let idx = map.xy_idx(pos.x, pos.y);
+                        if map.visible_tiles[idx] {
+                            ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph)
+                        }
+                    }
+
+                    gui::draw_ui(&self.ecs, ctx);
+                }
+            }
         }
 
         match newrunstate {
@@ -209,6 +226,31 @@ impl GameState for State {
                     }
                 }
             }
+            RunState::MainMenu { .. } => {
+                let result = gui::main_menu(self, ctx);
+                match result {
+                    gui::MainMenuResult::NoSelection { selected } => {
+                        newrunstate = RunState::MainMenu {
+                            menu_selection: selected,
+                        }
+                    }
+                    gui::MainMenuResult::Selected { selected } => match selected {
+                        gui::MainMenuSelection::NewGame => newrunstate = RunState::PreRun,
+                        gui::MainMenuSelection::LoadGame => {
+                            saveload_system::load_game(&mut self.ecs);
+                            newrunstate = RunState::AwaitingInput;
+                            saveload_system::delete_save();
+                        }
+                        gui::MainMenuSelection::Quit => ::std::process::exit(0),
+                    },
+                }
+            }
+            RunState::SaveGame => {
+                saveload_system::save_game(&mut self.ecs);
+                newrunstate = RunState::MainMenu {
+                    menu_selection: gui::MainMenuSelection::LoadGame,
+                };
+            }
         }
 
         {
@@ -228,6 +270,8 @@ fn main() -> rltk::BError {
 
     let mut gs = State { ecs: World::new() };
     gs.register_components();
+
+    gs.ecs.insert(SimpleMarkerAllocator::<SerializeMe>::new());
 
     let map: Map = Map::new_map_rooms_and_corridors();
     let (player_x, player_y) = map.rooms[0].center();
