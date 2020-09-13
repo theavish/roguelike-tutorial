@@ -46,6 +46,7 @@ pub enum RunState {
         menu_selection: gui::MainMenuSelection,
     },
     SaveGame,
+    NextLevel,
 }
 
 pub struct State {
@@ -251,6 +252,10 @@ impl GameState for State {
                     menu_selection: gui::MainMenuSelection::LoadGame,
                 };
             }
+            RunState::NextLevel => {
+                self.goto_next_level();
+                newrunstate = RunState::PreRun;
+            }
         }
 
         {
@@ -259,6 +264,89 @@ impl GameState for State {
         }
 
         damage_system::delete_the_dead(&mut self.ecs);
+    }
+}
+
+impl State {
+    fn entities_to_remove_on_level_change(&mut self) -> Vec<Entity> {
+        let entities = self.ecs.entities();
+        let player = self.ecs.read_storage::<Player>();
+        let backpack = self.ecs.read_storage::<InBackpack>();
+        let player_entity = self.ecs.fetch::<Entity>();
+
+        let mut to_delete: Vec<Entity> = Vec::new();
+        for entity in entities.join() {
+            let mut should_delete = true;
+
+            if let Some(_p) = player.get(entity) {
+                should_delete = false;
+            }
+            if let Some(bp) = backpack.get(entity) {
+                if bp.owner == *player_entity {
+                    should_delete = false;
+                }
+            }
+
+            if should_delete {
+                to_delete.push(entity);
+            }
+        }
+
+        return to_delete;
+    }
+
+    fn goto_next_level(&mut self) {
+        let to_delete = self.entities_to_remove_on_level_change();
+        for entity in to_delete {
+            self.ecs
+                .delete_entity(entity)
+                .expect("Unable to delete entity");
+        }
+
+        let world_map;
+        {
+            let mut world_map_resource = self.ecs.write_resource::<Map>();
+            let current_depth = world_map_resource.depth;
+            *world_map_resource = Map::new_map_rooms_and_corridors(current_depth + 1);
+            world_map = world_map_resource.clone();
+        }
+
+        // spawn enemies
+        for room in world_map.rooms.iter().skip(1) {
+            spawner::spawn_room(&mut self.ecs, room);
+        }
+
+        // place the player
+        let (p_x, p_y) = world_map.rooms[0].center();
+        let mut player_pos = self.ecs.write_resource::<Point>();
+        *player_pos = Point::new(p_x, p_y);
+        let mut position_components = self.ecs.write_storage::<Position>();
+        let player_entity = self.ecs.fetch::<Entity>();
+        if let Some(p_pos_comp) = position_components.get_mut(*player_entity) {
+            p_pos_comp.x = p_x;
+            p_pos_comp.y = p_y;
+        }
+
+        // mark viewsheds for update
+        let mut viewshed_components = self.ecs.write_storage::<Viewshed>();
+        if let Some(viewshed) = viewshed_components.get_mut(*player_entity) {
+            viewshed.dirty = true;
+        }
+
+        // heal the Player
+        let mut player_health_store = self.ecs.write_storage::<CombatStats>();
+        let mut amount_healed: i32 = 0;
+        if let Some(player_health) = player_health_store.get_mut(*player_entity) {
+            amount_healed = player_health.max_hp / 2;
+            player_health.hp += amount_healed;
+        }
+
+        // write to the log
+        let mut gamelog = self.ecs.fetch_mut::<GameLog>();
+        gamelog.entries.push(format!(
+            "You descend to floor {}, and heal {} hp.",
+            world_map.depth, amount_healed,
+        ));
     }
 }
 
@@ -273,7 +361,7 @@ fn main() -> rltk::BError {
 
     gs.ecs.insert(SimpleMarkerAllocator::<SerializeMe>::new());
 
-    let map: Map = Map::new_map_rooms_and_corridors();
+    let map: Map = Map::new_map_rooms_and_corridors(1);
     let (player_x, player_y) = map.rooms[0].center();
 
     let player_entity = spawner::player(&mut gs.ecs, player_x, player_y);

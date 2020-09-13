@@ -9,10 +9,12 @@ pub const MAPHEIGHT: usize = 43;
 pub const MAPCOUNT: usize = MAPHEIGHT * MAPWIDTH;
 pub const MAX_MONSTERS: i32 = 4;
 pub const MAX_ITEMS: i32 = 2;
+
 #[derive(PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub enum TileType {
     Wall,
     Floor,
+    StairsDown,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone)]
@@ -24,6 +26,7 @@ pub struct Map {
     pub revealed_tiles: Vec<bool>,
     pub visible_tiles: Vec<bool>,
     pub blocked_tiles: Vec<bool>,
+    pub depth: i32,
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
@@ -82,7 +85,7 @@ impl Map {
         }
     }
 
-    pub fn new_map_rooms_and_corridors() -> Map {
+    pub fn new_map_rooms_and_corridors(new_depth: i32) -> Map {
         let mut map = Map {
             tiles: vec![TileType::Wall; MAPCOUNT],
             rooms: Vec::new(),
@@ -92,6 +95,7 @@ impl Map {
             visible_tiles: vec![false; MAPCOUNT],
             blocked_tiles: vec![false; MAPCOUNT],
             tile_content: vec![Vec::new(); MAPCOUNT],
+            depth: new_depth,
         };
 
         const MAX_ROOMS: i32 = 30;
@@ -131,6 +135,10 @@ impl Map {
             }
         }
 
+        let stairs_pos = map.rooms[map.rooms.len() - 1].center();
+        let stairs_idx = map.xy_idx(stairs_pos.0, stairs_pos.1);
+        map.tiles[stairs_idx] = TileType::StairsDown;
+
         return map;
     }
 }
@@ -169,16 +177,16 @@ impl BaseMap for Map {
 
         // Diagonals
         if self.is_exit_valid(x - 1, y - 1) {
-            exits.push(((idx - w) - 1, 1.45));
+            exits.push(((idx - w) - 1, 2.0));
         }
         if self.is_exit_valid(x + 1, y - 1) {
-            exits.push(((idx - w) + 1, 1.45));
+            exits.push(((idx - w) + 1, 2.0));
         }
         if self.is_exit_valid(x - 1, y + 1) {
-            exits.push(((idx + w) - 1, 1.45));
+            exits.push(((idx + w) - 1, 2.0));
         }
         if self.is_exit_valid(x + 1, y + 1) {
-            exits.push(((idx + w) + 1, 1.45));
+            exits.push(((idx + w) + 1, 2.0));
         }
 
         return exits;
@@ -204,12 +212,16 @@ pub fn draw_map(ecs: &World, ctx: &mut Rltk) {
             let mut fg;
             match tile {
                 TileType::Floor => {
-                    glyph = rltk::to_cp437('.');
+                    glyph = 46; // period
                     fg = RGB::from_f32(0.0, 0.25, 0.1);
                 }
                 TileType::Wall => {
-                    glyph = rltk::to_cp437('#');
+                    glyph = 35; // hashtag
                     fg = RGB::from_f32(0.0, 0.8, 0.0);
+                }
+                TileType::StairsDown => {
+                    glyph = 31; // down arrow
+                    fg = RGB::from_f32(0.0, 1.0, 1.0);
                 }
             }
             if !map.visible_tiles[idx] {

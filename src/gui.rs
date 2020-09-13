@@ -37,6 +37,16 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
     let combat_stats = ecs.read_component::<CombatStats>();
     let players = ecs.read_storage::<Player>();
     let log = ecs.fetch::<GameLog>();
+    let map = ecs.fetch::<Map>();
+
+    // print depth
+    ctx.print_color(
+        2,
+        43,
+        RGB::named(rltk::YELLOW),
+        RGB::named(rltk::BLACK),
+        &format!("Depth: {}", map.depth),
+    );
 
     // print log
     let mut y = 44;
