@@ -75,11 +75,12 @@ impl State {
         self.ecs.register::<WantsToMelee>();
         self.ecs.register::<SufferDamage>();
         self.ecs.register::<Item>();
-        self.ecs.register::<Potion>();
+        self.ecs.register::<ProvidesHealing>();
         self.ecs.register::<InBackpack>();
         self.ecs.register::<WantsToPickUpItem>();
         self.ecs.register::<WantsToUseItem>();
         self.ecs.register::<WantsToDropItem>();
+        self.ecs.register::<Consumable>();
     }
 }
 

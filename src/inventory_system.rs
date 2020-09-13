@@ -1,6 +1,6 @@
 use super::{
-    CombatStats, GameLog, InBackpack, Name, Position, Potion, WantsToDropItem, WantsToPickUpItem,
-    WantsToUseItem,
+    CombatStats, Consumable, GameLog, InBackpack, Name, Position, ProvidesHealing, WantsToDropItem,
+    WantsToPickUpItem, WantsToUseItem,
 };
 use specs::prelude::*;
 
@@ -52,8 +52,9 @@ impl<'a> System<'a> for ItemUseSystem {
         Entities<'a>,
         WriteStorage<'a, WantsToUseItem>,
         ReadStorage<'a, Name>,
-        ReadStorage<'a, Potion>,
+        ReadStorage<'a, ProvidesHealing>,
         WriteStorage<'a, CombatStats>,
+        WriteStorage<'a, Consumable>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
@@ -63,25 +64,31 @@ impl<'a> System<'a> for ItemUseSystem {
             entities,
             mut item_to_use,
             names,
-            potions,
+            healing_items,
             mut combat_stats,
+            mut consumables,
         ) = data;
 
         for (entity, item_used, stats) in (&entities, &mut item_to_use, &mut combat_stats).join() {
-            let potion = potions.get(item_used.item);
+            let healing_item = healing_items.get(item_used.item);
 
-            match potion {
+            match healing_item {
                 None => {}
-                Some(potion) => {
-                    stats.hp = i32::min(stats.max_hp, stats.hp + potion.heal_amount);
+                Some(healer) => {
+                    stats.hp = i32::min(stats.max_hp, stats.hp + healer.heal_amount);
                     if entity == *player_entity {
                         gamelog.entries.push(format!(
                             "You drink the {}, healing {} hp.",
                             names.get(item_used.item).unwrap().value,
-                            potion.heal_amount
+                            healer.heal_amount
                         ));
                     }
-                    entities.delete(item_used.item).expect("Delete failed");
+
+                    let consumable = consumables.get(item_used.item);
+                    match consumable {
+                        None => {}
+                        Some(_) => entities.delete(item_used.item).expect("Delete failed"),
+                    }
                 }
             }
         }
