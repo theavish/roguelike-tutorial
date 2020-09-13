@@ -92,6 +92,7 @@ pub struct WantsToPickUpItem {
 #[derive(Component, Debug)]
 pub struct WantsToUseItem {
     pub item: Entity,
+    pub target: Option<rltk::Point>,
 }
 
 #[derive(Debug, Component, Clone)]
@@ -101,3 +102,23 @@ pub struct WantsToDropItem {
 
 #[derive(Debug, Component)]
 pub struct Consumable {}
+
+#[derive(Debug, Component)]
+pub struct Ranged {
+    pub range: i32,
+}
+
+#[derive(Debug, Component)]
+pub struct InflictsDamage {
+    pub damage: i32,
+}
+
+#[derive(Debug, Component)]
+pub struct AreaOfEffect {
+    pub radius: i32,
+}
+
+#[derive(Debug, Component)]
+pub struct Confusion {
+    pub turns: i32,
+}

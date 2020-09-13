@@ -1,8 +1,9 @@
 use super::{
-    BlocksTile, CombatStats, Consumable, Item, Monster, Name, Player, Position, ProvidesHealing,
-    Rect, Renderable, Viewshed, MAPWIDTH, MAX_ITEMS, MAX_MONSTERS,
+    AreaOfEffect, BlocksTile, CombatStats, Confusion, Consumable, InflictsDamage, Item, Monster,
+    Name, Player, Position, ProvidesHealing, Ranged, Rect, Renderable, Viewshed, MAPWIDTH,
+    MAX_ITEMS, MAX_MONSTERS,
 };
-use rltk::{FontCharType, RandomNumberGenerator, RGB};
+use rltk::{console, FontCharType, RandomNumberGenerator, RGB};
 use specs::prelude::*;
 
 /// Spawn the player object
@@ -86,12 +87,12 @@ pub fn spawn_room(ecs: &mut World, room: &Rect) {
     for idx in item_spawn_points.iter() {
         let x = (*idx % MAPWIDTH) as i32;
         let y = (*idx / MAPWIDTH) as i32;
-        health_potion(ecs, x, y);
+        random_item(ecs, x, y);
     }
 }
 
 /// Spawn a random monster at the location
-pub fn random_monster(ecs: &mut World, x: i32, y: i32) {
+fn random_monster(ecs: &mut World, x: i32, y: i32) {
     let roll: i32;
     {
         let mut rng = ecs.write_resource::<RandomNumberGenerator>();
@@ -101,6 +102,22 @@ pub fn random_monster(ecs: &mut World, x: i32, y: i32) {
     match roll {
         1 => orc(ecs, x, y),
         _ => goblin(ecs, x, y),
+    }
+}
+
+/// Spawn a random item at the location
+fn random_item(ecs: &mut World, x: i32, y: i32) {
+    let roll: i32;
+    {
+        let mut rng = ecs.write_resource::<RandomNumberGenerator>();
+        roll = rng.roll_dice(1, 4);
+    }
+    match roll {
+        1 => health_potion(ecs, x, y),
+        2 => fireball_scroll(ecs, x, y),
+        3 => magic_missile_scroll(ecs, x, y),
+        4 => confusion_scroll(ecs, x, y),
+        _ => console::log("Roll in spawner::random_item is misconfigured"),
     }
 }
 
@@ -154,5 +171,63 @@ fn health_potion(ecs: &mut World, x: i32, y: i32) {
         .with(Item {})
         .with(Consumable {})
         .with(ProvidesHealing { heal_amount: 8 })
+        .build();
+}
+
+fn magic_missile_scroll(ecs: &mut World, x: i32, y: i32) {
+    ecs.create_entity()
+        .with(Position { x, y })
+        .with(Renderable {
+            glyph: rltk::to_cp437(')'),
+            fg: RGB::named(rltk::CYAN),
+            bg: RGB::named(rltk::BLACK),
+            render_order: 2,
+        })
+        .with(Name {
+            value: "Scroll of Magic Missile".to_string(),
+        })
+        .with(Item {})
+        .with(Consumable {})
+        .with(Ranged { range: 6 })
+        .with(InflictsDamage { damage: 8 })
+        .build();
+}
+
+fn fireball_scroll(ecs: &mut World, x: i32, y: i32) {
+    ecs.create_entity()
+        .with(Position { x, y })
+        .with(Renderable {
+            glyph: rltk::to_cp437(')'),
+            fg: RGB::named(rltk::ORANGE),
+            bg: RGB::named(rltk::BLACK),
+            render_order: 2,
+        })
+        .with(Name {
+            value: "Scroll of Fireball".to_string(),
+        })
+        .with(Item {})
+        .with(Consumable {})
+        .with(Ranged { range: 6 })
+        .with(InflictsDamage { damage: 20 })
+        .with(AreaOfEffect { radius: 3 })
+        .build();
+}
+
+fn confusion_scroll(ecs: &mut World, x: i32, y: i32) {
+    ecs.create_entity()
+        .with(Position { x, y })
+        .with(Renderable {
+            glyph: rltk::to_cp437(')'),
+            fg: RGB::named(rltk::PINK),
+            bg: RGB::named(rltk::BLACK),
+            render_order: 2,
+        })
+        .with(Name {
+            value: "Scroll of Confusion".to_string(),
+        })
+        .with(Item {})
+        .with(Consumable {})
+        .with(Ranged { range: 6 })
+        .with(Confusion { turns: 4 })
         .build();
 }
