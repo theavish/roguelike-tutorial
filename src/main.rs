@@ -28,6 +28,7 @@ use inventory_system::ItemDropSystem;
 use inventory_system::ItemUseSystem;
 extern crate serde;
 use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};
+mod random_table;
 mod saveload_system;
 
 #[derive(PartialEq, Copy, Clone)]
@@ -304,16 +305,17 @@ impl State {
         }
 
         let world_map;
+        let current_depth;
         {
             let mut world_map_resource = self.ecs.write_resource::<Map>();
-            let current_depth = world_map_resource.depth;
+            current_depth = world_map_resource.depth;
             *world_map_resource = Map::new_map_rooms_and_corridors(current_depth + 1);
             world_map = world_map_resource.clone();
         }
 
         // spawn enemies
         for room in world_map.rooms.iter().skip(1) {
-            spawner::spawn_room(&mut self.ecs, room);
+            spawner::spawn_room(&mut self.ecs, room, current_depth + 1);
         }
 
         // place the player
@@ -363,13 +365,12 @@ fn main() -> rltk::BError {
 
     let map: Map = Map::new_map_rooms_and_corridors(1);
     let (player_x, player_y) = map.rooms[0].center();
-
     let player_entity = spawner::player(&mut gs.ecs, player_x, player_y);
 
     gs.ecs.insert(rltk::RandomNumberGenerator::new());
 
     for room in map.rooms.iter().skip(1) {
-        spawner::spawn_room(&mut gs.ecs, room);
+        spawner::spawn_room(&mut gs.ecs, room, 1);
     }
 
     gs.ecs.insert(GameLog {
