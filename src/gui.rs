@@ -1,5 +1,6 @@
 use super::{
-    CombatStats, GameLog, InBackpack, Map, Name, Player, Position, RunState, State, Viewshed,
+    CombatStats, Equipped, GameLog, InBackpack, Map, Name, Player, Position, RunState, State,
+    Viewshed,
 };
 use rltk::{Point, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
@@ -520,4 +521,88 @@ pub fn main_menu(gs: &mut State, ctx: &mut Rltk) -> MainMenuResult {
     return MainMenuResult::NoSelection {
         selected: MainMenuSelection::NewGame,
     };
+}
+
+pub fn remove_equipment_menu(gs: &mut State, ctx: &mut Rltk) -> (ItemMenuResult, Option<Entity>) {
+    let player_entity = gs.ecs.fetch::<Entity>();
+    let names = gs.ecs.read_storage::<Name>();
+    let equipped = gs.ecs.read_storage::<Equipped>();
+    let entities = gs.ecs.entities();
+
+    let worn = (&equipped, &names)
+        .join()
+        .filter(|item| item.0.owner == *player_entity);
+    let count = worn.count() as i32;
+
+    let mut y = 25 - (count / 2);
+    ctx.draw_box(
+        15,
+        y - 2,
+        31,
+        (count + 3) as i32,
+        RGB::named(rltk::WHITE),
+        RGB::named(rltk::BLACK),
+    );
+    ctx.print_color(
+        18,
+        y - 2,
+        RGB::named(rltk::YELLOW),
+        RGB::named(rltk::BLACK),
+        "Unequip item",
+    );
+    ctx.print_color(
+        18,
+        y + count + 1,
+        RGB::named(rltk::YELLOW),
+        RGB::named(rltk::BLACK),
+        "Esc to close",
+    );
+
+    let mut equippable: Vec<Entity> = Vec::new();
+    let mut j = 0;
+    for (entity, _e, name) in (&entities, &equipped, &names).join() {
+        ctx.set(
+            17,
+            y,
+            RGB::named(rltk::WHITE),
+            RGB::named(rltk::BLACK),
+            rltk::to_cp437('('),
+        );
+        ctx.set(
+            18,
+            y,
+            RGB::named(rltk::YELLOW),
+            RGB::named(rltk::BLACK),
+            97 + j as rltk::FontCharType,
+        );
+        ctx.set(
+            19,
+            y,
+            RGB::named(rltk::WHITE),
+            RGB::named(rltk::BLACK),
+            rltk::to_cp437(')'),
+        );
+
+        ctx.print(21, y, &name.value.to_string());
+        equippable.push(entity);
+        y += 1;
+        j += 1;
+    }
+
+    match ctx.key {
+        None => return (ItemMenuResult::NoResponse, None),
+        Some(key) => match key {
+            VirtualKeyCode::Escape => return (ItemMenuResult::Cancel, None),
+            _ => {
+                let selection = rltk::letter_to_option(key);
+                if selection > -1 && selection < count {
+                    return (
+                        ItemMenuResult::Selected,
+                        Some(equippable[selection as usize]),
+                    );
+                }
+                return (ItemMenuResult::NoResponse, None);
+            }
+        },
+    }
 }

@@ -106,9 +106,13 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
                 }
             }
             VirtualKeyCode::Space => return skip_turn(&mut gs.ecs),
+
+            // Menus
             VirtualKeyCode::D => return RunState::ShowDropItem,
             VirtualKeyCode::B => return RunState::ShowInventory,
+            VirtualKeyCode::R => return RunState::ShowRemoveEquipment,
             VirtualKeyCode::Escape => return RunState::SaveGame,
+
             _ => return RunState::AwaitingInput,
         },
     }

@@ -23,6 +23,7 @@ use gamelog::GameLog;
 mod gui;
 mod inventory_system;
 mod spawner;
+use inventory_system::EquipmentRemoveSystem;
 use inventory_system::ItemBagSystem;
 use inventory_system::ItemDropSystem;
 use inventory_system::ItemUseSystem;
@@ -48,6 +49,7 @@ pub enum RunState {
     },
     SaveGame,
     NextLevel,
+    ShowRemoveEquipment,
 }
 
 pub struct State {
@@ -72,6 +74,8 @@ impl State {
         use_item.run_now(&self.ecs);
         let mut drop_item = ItemDropSystem {};
         drop_item.run_now(&self.ecs);
+        let mut equipment_remove = EquipmentRemoveSystem {};
+        equipment_remove.run_now(&self.ecs);
 
         self.ecs.maintain();
     }
@@ -100,6 +104,11 @@ impl State {
         self.ecs.register::<Confusion>();
         self.ecs.register::<SimpleMarker<SerializeMe>>();
         self.ecs.register::<SerializationHelper>();
+        self.ecs.register::<Equippable>();
+        self.ecs.register::<Equipped>();
+        self.ecs.register::<MeleePowerBonus>();
+        self.ecs.register::<DefenseBonus>();
+        self.ecs.register::<WantsToRemoveEquipment>();
     }
 }
 
@@ -257,6 +266,25 @@ impl GameState for State {
                 self.goto_next_level();
                 newrunstate = RunState::PreRun;
             }
+            RunState::ShowRemoveEquipment => {
+                let result = gui::remove_equipment_menu(self, ctx);
+                match result.0 {
+                    gui::ItemMenuResult::Cancel => newrunstate = RunState::AwaitingInput,
+                    gui::ItemMenuResult::NoResponse => {}
+                    gui::ItemMenuResult::Selected => {
+                        let entity = result.1.unwrap();
+                        let mut intent = self.ecs.write_storage::<WantsToRemoveEquipment>();
+
+                        intent
+                            .insert(
+                                *self.ecs.fetch::<Entity>(),
+                                WantsToRemoveEquipment { item: entity },
+                            )
+                            .expect("Unable to insert intent");
+                        newrunstate = RunState::PlayerTurn;
+                    }
+                }
+            }
         }
 
         {
@@ -274,6 +302,7 @@ impl State {
         let player = self.ecs.read_storage::<Player>();
         let backpack = self.ecs.read_storage::<InBackpack>();
         let player_entity = self.ecs.fetch::<Entity>();
+        let equipped = self.ecs.read_storage::<Equipped>();
 
         let mut to_delete: Vec<Entity> = Vec::new();
         for entity in entities.join() {
@@ -282,8 +311,13 @@ impl State {
             if let Some(_p) = player.get(entity) {
                 should_delete = false;
             }
-            if let Some(bp) = backpack.get(entity) {
-                if bp.owner == *player_entity {
+            if let Some(backpack) = backpack.get(entity) {
+                if backpack.owner == *player_entity {
+                    should_delete = false;
+                }
+            }
+            if let Some(equipment) = equipped.get(entity) {
+                if equipment.owner == *player_entity {
                     should_delete = false;
                 }
             }
