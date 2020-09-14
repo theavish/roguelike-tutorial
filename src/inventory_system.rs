@@ -1,7 +1,7 @@
 use super::{
-    AreaOfEffect, CombatStats, Confusion, Consumable, Equippable, Equipped, Equipped, GameLog,
-    InBackpack, InBackpack, InflictsDamage, Map, Name, Position, ProvidesHealing, SufferDamage,
-    WantsToDropItem, WantsToPickUpItem, WantsToRemoveEquipment, WantsToUseItem,
+    AreaOfEffect, CombatStats, Confusion, Consumable, Equippable, Equipped, GameLog, InBackpack,
+    InflictsDamage, Map, Name, Position, ProvidesHealing, SufferDamage, WantsToDropItem,
+    WantsToPickUpItem, WantsToRemoveEquipment, WantsToUseItem,
 };
 use specs::prelude::*;
 

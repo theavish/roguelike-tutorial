@@ -50,6 +50,7 @@ pub enum RunState {
     SaveGame,
     NextLevel,
     ShowRemoveEquipment,
+    GameOver,
 }
 
 pub struct State {
@@ -124,6 +125,7 @@ impl GameState for State {
 
         match newrunstate {
             RunState::MainMenu { .. } => {}
+            RunState::GameOver { .. } => {}
             _ => {
                 draw_map(&self.ecs, ctx);
 
@@ -285,6 +287,18 @@ impl GameState for State {
                     }
                 }
             }
+            RunState::GameOver => {
+                let result = gui::game_over(ctx);
+                match result {
+                    gui::GameOverResult::NoSelection => {}
+                    gui::GameOverResult::QuitToMenu => {
+                        self.game_over_cleanup();
+                        newrunstate = RunState::MainMenu {
+                            menu_selection: gui::MainMenuSelection::NewGame,
+                        };
+                    }
+                }
+            }
         }
 
         {
@@ -384,6 +398,47 @@ impl State {
             world_map.depth, amount_healed,
         ));
     }
+
+    fn game_over_cleanup(&mut self) {
+        let mut to_delete = Vec::new();
+        for entity in self.ecs.entities().join() {
+            to_delete.push(entity);
+        }
+        for entity in to_delete.iter() {
+            self.ecs.delete_entity(*entity).expect("Deletion failed");
+        }
+
+        let world_map;
+        {
+            let mut world_map_resource = self.ecs.write_resource::<Map>();
+            *world_map_resource = Map::new_map_rooms_and_corridors(1);
+            world_map = world_map_resource.clone()
+        }
+
+        // spawn enemies
+        for room in world_map.rooms.iter().skip(1) {
+            spawner::spawn_room(&mut self.ecs, room, 1);
+        }
+
+        // make new player
+        let (p_x, p_y) = world_map.rooms[0].center();
+        let player_entity = spawner::player(&mut self.ecs, p_x, p_y);
+        let mut player_pos = self.ecs.write_resource::<Point>();
+        *player_pos = Point::new(p_x, p_y);
+        let mut position_components = self.ecs.write_storage::<Position>();
+        let mut player_entity_writer = self.ecs.write_resource::<Entity>();
+        *player_entity_writer = player_entity;
+        if let Some(p_pos_comp) = position_components.get_mut(player_entity) {
+            p_pos_comp.x = p_x;
+            p_pos_comp.y = p_y;
+        }
+
+        // mark viewshed for update
+        let mut viewshed_components = self.ecs.write_storage::<Viewshed>();
+        if let Some(viewshed) = viewshed_components.get_mut(player_entity) {
+            viewshed.dirty = true;
+        }
+    }
 }
 
 fn main() -> rltk::BError {
@@ -413,7 +468,9 @@ fn main() -> rltk::BError {
     gs.ecs.insert(map);
     gs.ecs.insert(Point::new(player_x, player_y));
     gs.ecs.insert(player_entity);
-    gs.ecs.insert(RunState::PreRun);
+    gs.ecs.insert(RunState::MainMenu {
+        menu_selection: gui::MainMenuSelection::NewGame,
+    });
 
     return rltk::main_loop(context, gs);
 }
