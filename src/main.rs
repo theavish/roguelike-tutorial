@@ -443,10 +443,10 @@ impl State {
 
 fn main() -> rltk::BError {
     use rltk::RltkBuilder;
-    let context = RltkBuilder::simple80x50()
+    let mut context = RltkBuilder::simple80x50()
         .with_title("Generic Roguelike")
         .build()?;
-
+    context.with_post_scanlines(true);
     let mut gs = State { ecs: World::new() };
     gs.register_components();
 
